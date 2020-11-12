@@ -1,0 +1,8 @@
+[
+    {
+        "type": "plugin",
+        "file": "gutenberg/gutenberg.php",
+        "name": "Gutenberg",
+        "versionMin": "9.0"
+    }
+]
