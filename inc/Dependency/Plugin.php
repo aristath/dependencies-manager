@@ -16,6 +16,16 @@ namespace Dependencies_Manager\Dependency;
 class Plugin extends \Dependencies_Manager\Dependency {
 
 	/**
+	 * An array of all plugins.
+	 *
+	 * @static
+	 * @access protected
+	 * @since 1.0.0
+	 * @var array
+	 */
+	protected static $plugins;
+
+	/**
 	 * Process a plugin dependency.
 	 *
 	 * @access public
@@ -24,8 +34,15 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 */
 	public function process_dependency() {
 
+		if ( ! self::$plugins ) {
+			if ( ! function_exists( 'get_plugins' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			self::$plugins = get_plugins();
+		}
+
 		// If the plugin is not installed, prompt to install it.
-		if ( ! isset( $plugins[ $this->dependency->file ] ) ) {
+		if ( ! isset( self::$plugins[ $this->dependency->file ] ) ) {
 			$this->install();
 			return;
 		}
@@ -46,6 +63,7 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function install() {
+		var_dump( 'Install the plugin' );
 		// TODO.
 		return true;
 	}
@@ -58,6 +76,7 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function activate() {
+		var_dump( 'Activate the plugin' );
 		// TODO.
 		return true;
 	}
@@ -70,7 +89,8 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function check_version() {
-		// TODO.
-		return true;
+		$installed_version = self::$plugins[ $this->dependency->file ]['Version'];
+		$required_version  = $this->dependency->version;
+		return version_compare( $installed_version, $required_version ) >= 0;
 	}
 }
