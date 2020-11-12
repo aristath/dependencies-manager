@@ -26,14 +26,14 @@ class Plugin extends \Dependencies_Manager\Dependency {
 
 		// If the plugin is not installed, prompt to install it.
 		if ( ! isset( $plugins[ $this->dependency->file ] ) ) {
-			$this->install_plugin( $this->dependency );
+			$this->install();
 			return;
 		}
 
 		// If the plugin is not active, prompt to activate it.
 		if ( ! is_plugin_active( $this->dependency->file ) ) {
 			if ( $this->check_version() ) {
-				$this->activate_plugin();
+				$this->activate();
 			}
 		}
 	}

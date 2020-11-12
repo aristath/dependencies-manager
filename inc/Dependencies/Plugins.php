@@ -8,6 +8,8 @@
 
 namespace Dependencies_Manager\Dependencies;
 
+use \Dependencies_Manager\Dependency\Plugin;
+
 /**
  * Init dependencies manager.
  *
@@ -75,7 +77,7 @@ class Plugins {
 		foreach ( $dependencies as $dependency ) {
 			switch ( $dependency->type ) {
 				case 'plugin':
-					new Dependency\Plugin( $dependency );
+					new Plugin( $dependency );
 					break;
 			}
 		}
