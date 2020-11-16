@@ -8,6 +8,8 @@
 
 namespace Dependencies_Manager\Dependency;
 
+use Dependencies_Manager\Notice;
+
 /**
  * Handles theme dependencies.
  *
@@ -69,7 +71,7 @@ class Theme extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function install() {
-		var_dump( 'Install the theme' );
+		new Notice( 'Install the theme' );
 		// TODO.
 		return true;
 	}
@@ -82,7 +84,7 @@ class Theme extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function activate() {
-		var_dump( 'Activate the theme' );
+		new Notice( 'Activate the theme' );
 		// TODO.
 		return true;
 	}
@@ -95,7 +97,7 @@ class Theme extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function update() {
-		var_dump( 'Update the theme' );
+		new Notice( 'Update the theme' );
 		// TODO.
 		return true;
 	}

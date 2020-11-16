@@ -8,6 +8,8 @@
 
 namespace Dependencies_Manager\Dependency;
 
+use Dependencies_Manager\Notice;
+
 /**
  * Handles plugin dependencies.
  *
@@ -51,6 +53,8 @@ class Plugin extends \Dependencies_Manager\Dependency {
 		if ( ! is_plugin_active( $this->dependency->file ) ) {
 			if ( $this->check_version() ) {
 				$this->activate();
+			} else {
+				$this->update();
 			}
 		}
 	}
@@ -63,7 +67,7 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function install() {
-		var_dump( 'Install the plugin' );
+		new Notice( 'Install the plugin' );
 		// TODO.
 		return true;
 	}
@@ -76,7 +80,7 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function activate() {
-		var_dump( 'Activate the plugin' );
+		new Notice( 'Activate the plugin' );
 		// TODO.
 		return true;
 	}
@@ -89,7 +93,7 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function update() {
-		var_dump( 'Update the plugin' );
+		new Notice( 'Update the plugin' );
 		// TODO.
 		return true;
 	}
