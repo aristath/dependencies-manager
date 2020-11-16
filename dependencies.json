@@ -1,7 +1,7 @@
 [
     {
         "type": "plugin",
-        "file": "gutenberg/gutenberg.php",
+        "slug": "gutenberg",
         "name": "Gutenberg",
         "version": "9.0"
 	},
