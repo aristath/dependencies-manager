@@ -9,6 +9,7 @@
 namespace Dependencies_Manager\Dependencies;
 
 use \Dependencies_Manager\Dependency\Plugin;
+use Dependencies_Manager\Dependency\Theme;
 
 /**
  * Init dependencies manager.
@@ -78,6 +79,10 @@ class Plugins {
 			switch ( $dependency->type ) {
 				case 'plugin':
 					new Plugin( $dependency );
+					break;
+
+				case 'theme':
+					new Theme( $dependency );
 					break;
 			}
 		}

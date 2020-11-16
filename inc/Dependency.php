@@ -66,6 +66,16 @@ abstract class Dependency {
 	abstract public function activate();
 
 	/**
+	 * Update the dependency.
+	 *
+	 * @abstract
+	 * @access public
+	 * @since 1.0
+	 * @return bool
+	 */
+	abstract public function update();
+
+	/**
 	 * Check if the currently installed version satisfies the requirements.
 	 *
 	 * @access public

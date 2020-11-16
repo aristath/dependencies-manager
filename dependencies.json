@@ -3,6 +3,12 @@
         "type": "plugin",
         "file": "gutenberg/gutenberg.php",
         "name": "Gutenberg",
-        "versionMin": "9.0"
-    }
+        "version": "9.0"
+	},
+	{
+		"type": "theme",
+		"name": "Twenty Twenty",
+		"slug": "twentytwenty",
+		"version": "1.6"
+	}
 ]

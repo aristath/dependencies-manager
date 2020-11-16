@@ -82,6 +82,19 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	}
 
 	/**
+	 * Update the plugin.
+	 *
+	 * @access public
+	 * @since 1.0.0
+	 * @return bool
+	 */
+	public function update() {
+		var_dump( 'Update the plugin' );
+		// TODO.
+		return true;
+	}
+
+	/**
 	 * Check the plugin version and determine if it satisfies the minimum required version.
 	 *
 	 * @access public
