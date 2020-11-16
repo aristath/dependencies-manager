@@ -71,7 +71,13 @@ class Theme extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function install() {
-		new Notice( 'Install the theme' );
+		new Notice(
+			sprintf(
+				/* translators: The theme name. */
+				__( 'Missing dependency: Please install the "%s" theme' ),
+				$this->dependency->name
+			)
+		);
 		// TODO.
 		return true;
 	}
@@ -84,7 +90,13 @@ class Theme extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function activate() {
-		new Notice( 'Activate the theme' );
+		new Notice(
+			sprintf(
+				/* translators: The theme name. */
+				__( 'Inactive dependency: Please activate the "%s" theme' ),
+				$this->dependency->name
+			)
+		);
 		// TODO.
 		return true;
 	}
@@ -97,7 +109,13 @@ class Theme extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function update() {
-		new Notice( 'Update the theme' );
+		new Notice(
+			sprintf(
+				/* translators: The theme name. */
+				__( 'Outdated dependency: Please update the "%s" theme' ),
+				$this->dependency->name
+			)
+		);
 		// TODO.
 		return true;
 	}

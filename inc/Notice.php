@@ -25,24 +25,13 @@ class Notice {
 	private $message;
 
 	/**
-	 * The notice title.
-	 *
-	 * @access private
-	 * @since 1.0
-	 * @var string
-	 */
-	private $title;
-
-	/**
 	 * Constructor.
 	 *
 	 * @access public
-	 * @param string $title The notice title.
 	 * @param string $message The notice message.
 	 * @since 1.0.0
 	 */
-	public function __construct( $title = '', $message = '' ) {
-		$this->title   = $title;
+	public function __construct( $message = '' ) {
 		$this->message = $message;
 
 		add_action( 'admin_notices', [ $this, 'the_notice' ] );
@@ -57,9 +46,8 @@ class Notice {
 	 */
 	public function the_notice() {
 		?>
-		<div class="notice warning">
-			<h2 class="notice-title"><?php echo esc_html( $this->title ); ?></h2>
-			<?php echo esc_html( $this->message ); ?>
+		<div class="notice notice-error">
+			<p><?php echo esc_html( $this->message ); ?></p>
 		</div>
 		<?php
 	}
