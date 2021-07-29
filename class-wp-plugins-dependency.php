@@ -6,14 +6,12 @@
  * @since 1.0
  */
 
-namespace Dependencies_Manager\Dependency;
-
 /**
  * Handles plugin dependencies.
  *
  * @since 1.0
  */
-class Plugin extends \Dependencies_Manager\Dependency {
+class WP_Plugins_Dependency {
 
 	/**
 	 * The dependency.

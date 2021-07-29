@@ -71,7 +71,7 @@ class WP_Plugins_Dependencies {
 
 		// Loop dependencies.
 		foreach ( $dependencies as $dependency ) {
-			new \Dependencies_Manager\Dependency\Plugin( $dependency );
+			new WP_Plugins_Dependency( $dependency );
 			break;
 		}
 	}
