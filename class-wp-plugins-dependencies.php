@@ -6,16 +6,12 @@
  * @since 1.0
  */
 
-namespace Dependencies_Manager\Dependencies;
-
-use \Dependencies_Manager\Dependency\Plugin;
-
 /**
- * Init dependencies manager.
+ * Plugins dependencies manager.
  *
  * @since 1.0.0
  */
-class Plugins {
+class WP_Plugins_Dependencies {
 
 	/**
 	 * Constructor.
@@ -75,7 +71,7 @@ class Plugins {
 
 		// Loop dependencies.
 		foreach ( $dependencies as $dependency ) {
-			new Plugin( $dependency );
+			new \Dependencies_Manager\Dependency\Plugin( $dependency );
 			break;
 		}
 	}
