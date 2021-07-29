@@ -8,8 +8,6 @@
 
 namespace Dependencies_Manager\Dependency;
 
-use Dependencies_Manager\Notice;
-
 /**
  * Handles plugin dependencies.
  *
@@ -95,12 +93,17 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function install() {
-		new Notice(
-			sprintf(
-				/* translators: The plugin name. */
-				__( 'Missing dependency: Please install the "%s" plugin' ),
-				$this->dependency->name
-			)
+		add_action(
+			'admin_notices',
+			function() {
+				echo '<div class="notice notice-error">';
+				printf(
+					/* translators: The plugin name. */
+					'<p>' . __( 'Missing dependency: Please install the "%s" plugin' ) . '</p>',
+					$this->dependency->name
+				);
+				echo '</div>';
+			}
 		);
 		// TODO.
 		return true;
@@ -114,12 +117,17 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function activate() {
-		new Notice(
-			sprintf(
-				/* translators: The plugin name. */
-				__( 'Inactive dependency: Please activate the "%s" plugin' ),
-				$this->dependency->name
-			)
+		add_action(
+			'admin_notices',
+			function() {
+				echo '<div class="notice notice-error">';
+				printf(
+					/* translators: The plugin name. */
+					'<p>' . __( 'Inactive dependency: Please activate the "%s" plugin' ) . '</p>',
+					$this->dependency->name
+				);
+				echo '</div>';
+			}
 		);
 		// TODO.
 		return true;
@@ -133,12 +141,13 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @return bool
 	 */
 	public function update() {
-		new Notice(
-			sprintf(
-				/* translators: The plugin name. */
-				__( 'Outdated dependency: Please update the "%s" plugin' ),
-				$this->dependency->name
-			)
+		add_action(
+			'admin_notices',
+			function() {
+				echo '<div class="notice notice-error"><p>';
+				_e( 'Outdated dependency: Please update the "%s" plugin' );
+				echo '</p></div>';
+			}
 		);
 		// TODO.
 		return true;
