@@ -16,6 +16,14 @@ namespace Dependencies_Manager\Dependency;
 class Plugin extends \Dependencies_Manager\Dependency {
 
 	/**
+	 * The dependency.
+	 *
+	 * @access public
+	 * @var stdClass
+	 */
+	public $dependency;
+
+	/**
 	 * An array of all plugins.
 	 *
 	 * @static
@@ -34,6 +42,18 @@ class Plugin extends \Dependencies_Manager\Dependency {
 	 * @var array
 	 */
 	protected static $plugins_slugs;
+
+	/**
+	 * Constructor.
+	 *
+	 * @access public
+	 * @since 1.0.0
+	 * @param stdClass $dependency The dependency.
+	 */
+	public function __construct( $dependency ) {
+		$this->dependency = $dependency;
+		$this->process_dependency();
+	}
 
 	/**
 	 * Get all plugins and set the object props.
