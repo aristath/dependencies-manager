@@ -14,6 +14,16 @@
 class WP_Plugins_Dependencies {
 
 	/**
+	 * The database option where we store the array of plugins that should be active
+	 * but are not due to unmet dependencies.
+	 *
+	 * @access protected
+	 * @since 1.0.0
+	 * @var string
+	 */
+	protected $plugins_to_activate_option_name = 'plugins_to_activate_with_unmet_dependencies';
+
+	/**
 	 * Constructor.
 	 *
 	 * @access public
@@ -40,8 +50,20 @@ class WP_Plugins_Dependencies {
 
 		// Loop plugins.
 		foreach ( array_keys( $plugins ) as $file ) {
-			$this->plugin_dependencies( $file );
+			$this->process_plugin_dependencies( $file );
 		}
+	}
+
+	/**
+	 * Get an array of plugins that should be activated but are not,
+	 * due to missing/unmet dependencies.
+	 *
+	 * @access public
+	 * @since 1.0.0
+	 * @return array
+	 */
+	public function get_plugins_to_activate() {
+		return get_option( $this->plugins_to_activate_option_name, array() );
 	}
 
 	/**
@@ -51,10 +73,10 @@ class WP_Plugins_Dependencies {
 	 * @param string $file The plugin file.
 	 * @return void
 	 */
-	public function plugin_dependencies( $file ) {
+	public function process_plugin_dependencies( $file ) {
 
-		// Early exit if this plugin is not active.
-		if ( ! is_plugin_active( $file ) ) {
+		// Early exit if this plugin is not active, or we don't want to activate it.
+		if ( ! is_plugin_active( $file ) && ! in_array( $file, $this->get_plugins_to_activate() ) ) {
 			return;
 		}
 
