@@ -4,11 +4,5 @@
         "slug": "gutenberg",
         "name": "Gutenberg",
         "version": "9.0"
-	},
-	{
-		"type": "theme",
-		"name": "Twenty Twenty",
-		"slug": "twentytwenty",
-		"version": "1.6"
 	}
 ]

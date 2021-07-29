@@ -1,6 +1,6 @@
 <?php
 /**
- * An abstract class used as a base for plugin & theme dependencies.
+ * An abstract class used as a base for plugin dependencies.
  *
  * @package dependencies-manager
  * @since 1.0.0
@@ -9,7 +9,7 @@
 namespace Dependencies_Manager;
 
 /**
- * An abstract class used as a base for plugin & theme dependencies.
+ * An abstract class used as a base for plugin dependencies.
  *
  * @since 1.0.0
  */
