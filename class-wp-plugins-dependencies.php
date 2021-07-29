@@ -24,6 +24,15 @@ class WP_Plugins_Dependencies {
 	protected $plugins_to_activate_option_name = 'plugins_to_activate_with_unmet_dependencies';
 
 	/**
+	 * Installed plugins.
+	 *
+	 * @access protected
+	 * @since 1.0.0
+	 * @var array
+	 */
+	protected $installed_plugins;
+
+	/**
 	 * Constructor.
 	 *
 	 * @access public
@@ -46,10 +55,10 @@ class WP_Plugins_Dependencies {
 		}
 
 		// Get an array of all plugins.
-		$plugins = get_plugins();
+		$this->installed_plugins = get_plugins();
 
-		// Loop plugins.
-		foreach ( array_keys( $plugins ) as $file ) {
+		// Loop installed plugins.
+		foreach ( array_keys( $this->installed_plugins ) as $file ) {
 			$this->process_plugin_dependencies( $file );
 		}
 	}
