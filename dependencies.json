@@ -1,8 +1,12 @@
 [
     {
-        "type": "plugin",
         "slug": "gutenberg",
         "name": "Gutenberg",
-        "version": "9.0"
+        "version": "11.0"
+	},
+	{
+        "slug": "woocommerce",
+        "name": "WooCommerce",
+        "version": "5.5.0"
 	}
 ]
