@@ -58,8 +58,7 @@ class WP_Plugins_Dependencies {
 		$this->installed_plugins = get_plugins();
 		// Loop installed plugins.
 		foreach ( $this->installed_plugins as $file => $plugin ) {
-			$this->installed_plugins[ $file ]['slug'] = dirname( $file );
-			$this->process_plugin_dependencies( $plugin );
+			$this->process_plugin_dependencies( $file );
 		}
 	}
 
@@ -102,8 +101,55 @@ class WP_Plugins_Dependencies {
 
 		// Loop dependencies.
 		foreach ( $dependencies as $dependency ) {
-			new WP_Plugins_Dependency( $dependency );
-			break;
+			$this->process_plugin_dependency( $file, $dependency );
+		}
+	}
+
+	/**
+	 * Processes a plugin dependency.
+	 *
+	 * @access protected
+	 * @since 1.0.0
+	 * @param string   $plugin     The plugin defining the dependency.
+	 * @param stdClass $dependency A dependency.
+	 * @return void
+	 */
+	protected function process_plugin_dependency( $plugin, $dependency ) {
+		$dependency_is_installed = false;
+		$dependency_is_active    = false;
+
+		foreach ( $this->installed_plugins as $file => $installed_plugin ) {
+			if ( dirname( $file ) === $dependency->slug ) {
+				$dependency_is_installed = true;
+				if ( is_plugin_active( $file ) ) {
+					$dependency_is_active = true;
+				}
+			}
+		}
+
+		if ( $dependency_is_active ) {
+			return;
+		}
+
+		if ( $dependency_is_installed ) {
+			$this->maybe_activate_dependency( $dependency->slug );
+		}
+	}
+
+	/**
+	 * Show a notice and activate an installed dependency.
+	 *
+	 * @access protected
+	 * @since 1.0.0
+	 * @return void
+	 */
+	protected function maybe_activate_dependency( $plugin_slug ) {
+		//WIP
+		foreach ( array_keys( $this->installed_plugins ) as $plugin_file ) {
+			if ( 0 === strpos( $plugin_file, "$plugin_slug/" ) ) {
+				activate_plugin( $plugin_file );
+				return;
+			}
 		}
 	}
 }
