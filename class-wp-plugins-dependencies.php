@@ -56,10 +56,10 @@ class WP_Plugins_Dependencies {
 
 		// Get an array of all plugins.
 		$this->installed_plugins = get_plugins();
-
 		// Loop installed plugins.
-		foreach ( array_keys( $this->installed_plugins ) as $file ) {
-			$this->process_plugin_dependencies( $file );
+		foreach ( $this->installed_plugins as $file => $plugin ) {
+			$this->installed_plugins[ $file ]['slug'] = dirname( $file );
+			$this->process_plugin_dependencies( $plugin );
 		}
 	}
 
