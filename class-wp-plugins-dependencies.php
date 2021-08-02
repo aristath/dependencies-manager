@@ -305,7 +305,6 @@ class WP_Plugins_Dependencies {
 	 * @return void
 	 */
 	protected function maybe_install_dependency( $plugin, $dependency ) {
-		$button = '<button class="button" onclick="window.installAndActivatePlugin(\'' . $dependency->slug . '\');">' . __( 'Install and activate dependency' ) . '</button>';
 
 		$this->notices[] = array(
 			'content' => sprintf(
@@ -313,7 +312,12 @@ class WP_Plugins_Dependencies {
 				__( 'Plugin "%1$s" depends on plugin "%2$s" to be installed. %3$s' ),
 				$plugin['Name'],
 				$dependency->name,
-				$button
+				sprintf(
+					'<button class="%s" onclick="%s">%s</button>',
+					"button install-dependency-{$dependency->slug}",
+					"window.installAndActivatePlugin('{$dependency->slug}');",
+					__( 'Install and activate dependency' )
+				)
 			),
 		);
 	}
@@ -327,15 +331,18 @@ class WP_Plugins_Dependencies {
 	 * @return void
 	 */
 	protected function maybe_activate_dependency( $plugin, $dependency ) {
-		$button = '<button class="button" onclick="window.activatePlugin(\'' . $dependency->file . '\');">' . __( 'Activate dependency' ) . '</button>';
-
 		$this->notices[] = array(
 			'content' => sprintf(
 				/* translators: %1$s: The plugin we want to activate. %2$s: The name of the plugin to install. %3$s: "Activate" button. */
 				__( 'Plugin "%1$s" depends on plugin "%2$s" to be activated. %3$s' ),
 				$plugin['Name'],
 				$dependency->name,
-				$button
+				sprintf(
+					'<button class="%s" onclick="%s">%s</button>',
+					"button activate-dependency-{$dependency->slug}",
+					"window.activatePlugin('{$dependency->file}');",
+					__( 'Activate dependency' )
+				)
 			),
 		);
 	}
@@ -383,6 +390,10 @@ class WP_Plugins_Dependencies {
 		<script>
 		window.installAndActivatePlugin = ( slug ) => {
 
+			jQuery( 'button.install-dependency-' + slug )
+				.html( '<?php esc_html_e( 'Installing plugin, please wait. The page will refresh automatically when done' ); ?>' )
+				.attr( 'disabled', true );
+
 			// Install the plugin.
 			wp.updates.installPlugin( {
 				slug: slug,
@@ -397,6 +408,10 @@ class WP_Plugins_Dependencies {
 			} );
 		};
 		window.activatePlugin = ( file ) => {
+			jQuery( 'button.activate-dependency-' + file.split( '/' )[0] )
+				.html( '<?php esc_html_e( 'Activating plugin, please wait. The page will refresh automatically when done' ); ?>' )
+				.attr( 'disabled', true );
+
 			// AJAX request to activate the plugin.
 			jQuery.get( ajaxurl, {
 				action: 'plugin_dependencies_activate_plugin',
