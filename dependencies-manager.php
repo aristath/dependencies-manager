@@ -5,7 +5,6 @@
  * @package dependencies-manager
  */
 
-require_once 'class-wp-plugins-dependency.php';
 require_once 'class-wp-plugins-dependencies.php';
 
 new WP_Plugins_Dependencies();
