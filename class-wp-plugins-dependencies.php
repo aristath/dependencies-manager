@@ -42,6 +42,7 @@ class WP_Plugins_Dependencies {
 	 */
 	public function __construct() {
 		add_action( 'plugins_loaded', array( $this, 'run' ) );
+		add_action( 'plugins_loaded', array( $this, 'cancel_activation_request' ) );
 		add_action( 'admin_notices', [ $this, 'admin_notices' ] );
 		add_action( 'wp_ajax_plugin_dependencies_activate_plugin', [ $this, 'ajax_activate_dependency' ] );
 	}
@@ -136,12 +137,17 @@ class WP_Plugins_Dependencies {
 	 */
 	public function maybe_process_plugin_dependencies( $file ) {
 
-		if ( ! is_plugin_active( $file ) && ! in_array( $file, $this->get_plugins_to_activate() ) ) {
+		$plugin_is_active           = is_plugin_active( $file );
+		$plugin_awaiting_activation = in_array( $file, $this->get_plugins_to_activate() );
+
+		if ( ! $plugin_is_active && ! $plugin_awaiting_activation ) {
 			return;
 		}
+
 		// Get the dependencies.
 		$dependencies = $this->get_plugin_dependencies( $file );
 
+		// Early return if there are no dependencies.
 		if ( empty( $dependencies ) ) {
 			return;
 		}
@@ -156,13 +162,52 @@ class WP_Plugins_Dependencies {
 
 		// Make sure plugin is deactivated when its dependencies are not met.
 		if ( ! $dependencies_met ) {
-			if ( is_plugin_active( $file ) ) {
+			if ( $plugin_is_active ) {
 				deactivate_plugins( $file );
 			}
 
+			// Add plugin to queue of plugins to be activated.
 			$this->add_plugin_to_queue( $file );
-		} elseif ( in_array( $file, $this->get_plugins_to_activate() ) ) {
+
+			// Remove the "Activate" link from plugin,
+			// and add a "Cancel activation request" link in its place.
+			add_filter(
+				"plugin_action_links_{$file}",
+				function( $actions ) use ( $file ) {
+					if ( ! empty( $actions['activate'] ) ) {
+						unset( $actions['activate'] );
+					}
+					if ( current_user_can( 'activate_plugin', $file ) ) {
+						$cancel_activation = sprintf(
+							'<a href="%s" class="cancel-activate unmet-dependencies" aria-label="%s">%s</a>',
+							wp_nonce_url( 'plugins.php?action=cancel-activate&amp;plugin=' . urlencode( $file ), 'cancel-activate-plugin_' . $file ),
+							/* translators: %s: Plugin name. */
+							esc_attr( sprintf( _x( 'Cancel activation of %s', 'plugin' ), get_plugin_data(  WP_PLUGIN_DIR . '/' . $file  )['Name'] ) ),
+							__( 'Cancel activation request' )
+						);
+
+						$actions = array_merge( array( 'cancel-activation' => $cancel_activation ), $actions );
+					}
+					return $actions;
+				}
+			);
+
+		} elseif ( $plugin_awaiting_activation ) {
 			activate_plugin( $file );
+			$this->remove_plugin_from_queue( $file );
+		}
+	}
+
+	/**
+	 * Cancel plugin's activation request.
+	 *
+	 * @return void
+	 */
+	public function cancel_activation_request() {
+		if ( ! empty( $_GET['action'] ) && 'cancel-activate' === $_GET['action'] ) {
+			$file = $_GET['plugin'];
+			check_admin_referer( 'cancel-activate-plugin_' . $file );
+
 			$this->remove_plugin_from_queue( $file );
 		}
 	}
@@ -211,8 +256,10 @@ class WP_Plugins_Dependencies {
 			}
 		}
 
-		// Early return if the plugin is already installed and activated.
+		// If the plugin is already activated, disable its deactivation
+		// and return true.
 		if ( $dependency_is_active ) {
+			$this->disallow_disabling_dependency( $plugin, $dependency );
 			return true;
 		}
 
@@ -223,6 +270,30 @@ class WP_Plugins_Dependencies {
 			$this->maybe_activate_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
 		}
 		return false;
+	}
+
+	/**
+	 * Disallow deactivating a plugin which is a dependency.
+	 *
+	 * @param string   $plugin     The plugin defining the dependency.json
+	 * @param stdClass $dependency A dependency
+	 *
+	 * @return void
+	 */
+	protected function disallow_disabling_dependency( $plugin, $dependency ) {
+		add_filter(
+			"plugin_action_links_{$dependency->file}",
+			function( $actions ) use ( $plugin ) {
+				if ( ! empty( $actions['deactivate'] ) ) {
+					$actions['deactivate'] = sprintf(
+						/* translators: %s: plugin name. */
+						'<span style="color:#888;">' . __( 'Plugin can not be deactivated because it is a dependency for the "%s" plugin' ) . '</span>',
+						get_plugin_data(  WP_PLUGIN_DIR . '/' . $plugin  )['Name']
+					);
+				}
+				return $actions;
+			}
+		);
 	}
 
 	/**
