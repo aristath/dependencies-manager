@@ -6,5 +6,6 @@
  */
 
 require_once 'class-wp-plugins-dependencies.php';
+require_once 'tgmpa.php';
 
 new WP_Plugins_Dependencies();
