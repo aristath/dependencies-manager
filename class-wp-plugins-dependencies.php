@@ -291,19 +291,17 @@ class WP_Plugins_Dependencies {
 	 * @return void
 	 */
 	protected function maybe_install_dependency( $plugin, $dependency ) {
-
+		if ( ! function_exists( 'install_plugin_install_status' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+		}
 		$this->notices[] = array(
 			'content' => sprintf(
 				/* translators: %1$s: The plugin we want to activate. %2$s: The name of the plugin to install. %3$s: "Install & Activate" button. */
 				__( 'Plugin "%1$s" depends on plugin "%2$s" to be installed. %3$s' ),
 				$plugin['Name'],
 				$dependency->name,
-				sprintf(
-					'<button class="%s" onclick="%s">%s</button>',
-					"button install-dependency-{$dependency->slug}",
-					"window.installAndActivatePlugin('{$dependency->slug}');",
-					__( 'Install and activate dependency' )
-				)
+				/* translators: %s: Plugin name. */
+				'<a href="' . esc_url( install_plugin_install_status( array( 'slug'=>$dependency->name ) )['url'] ) . '">' . sprintf( __( 'Install and activate %s' ), $dependency->name ) . '</a>',
 			),
 		);
 	}
@@ -420,25 +418,6 @@ class WP_Plugins_Dependencies {
 	public function the_script() {
 		?>
 		<script>
-		window.installAndActivatePlugin = ( slug ) => {
-
-			jQuery( 'button.install-dependency-' + slug )
-				.html( '<?php esc_html_e( 'Installing plugin, please wait. The page will refresh automatically when done' ); ?>' )
-				.attr( 'disabled', true );
-
-			// Install the plugin.
-			wp.updates.installPlugin( {
-				slug: slug,
-				success: function( res ) {
-					// Redirect to activation URL.
-					window.location = res.activateUrl;
-					// window.location.reload();
-				},
-				error: function( e ) {
-					// TODO.
-				}
-			} );
-		};
 		window.activatePlugin = ( file ) => {
 			jQuery( 'button.activate-dependency-' + file.split( '/' )[0] )
 				.html( '<?php esc_html_e( 'Activating plugin, please wait. The page will refresh automatically when done' ); ?>' )
