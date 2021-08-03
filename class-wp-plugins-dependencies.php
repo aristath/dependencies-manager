@@ -19,7 +19,7 @@ class WP_Plugins_Dependencies {
 	 *
 	 * @var string
 	 */
-	protected $plugins_to_activate_option_name = 'plugins_to_activate_with_unmet_dependencies';
+	protected $plugins_to_activate_option_name = 'pending_plugin_activations';
 
 	/**
 	 * Installed plugins.
@@ -41,91 +41,46 @@ class WP_Plugins_Dependencies {
 	 * Add hooks.
 	 */
 	public function __construct() {
-		add_action( 'plugins_loaded', array( $this, 'run' ) );
+		// Get an array of installed plugins and set it in the object's $installed_plugins prop.
+		$this->get_plugins();
+
+		// Add a hook to allow canceling an activation request.
 		add_action( 'plugins_loaded', array( $this, 'cancel_activation_request' ) );
+
+		// Go through installed plugins and process their dependencies.
+		add_action( 'plugins_loaded', array( $this, 'loop_installed_plugins' ) );
+
+		// Add the admin notices.
 		add_action( 'admin_notices', [ $this, 'admin_notices' ] );
+
+		// Activate a plugin via AJAX.
 		add_action( 'wp_ajax_plugin_dependencies_activate_plugin', [ $this, 'ajax_activate_dependency' ] );
 	}
 
 	/**
-	 * Add notices.
+	 * Get an array of installed plugins and set it in the object's $installed_plugins prop.
 	 *
 	 * @return void
 	 */
-	public function admin_notices() {
-		// Early return if there are no notices to display.
-		if ( empty( $this->notices ) ) {
-			return;
-		}
-
-		foreach ( $this->notices as $notice ) {
-			echo '<div class="notice notice-warning plugin-dependencies"><p>' . $notice['content'] . '</p></div>';
-		}
-
-		add_action( 'admin_footer', array( $this, 'the_script' ) );
-	}
-
-	/**
-	 * Run dependencies.
-	 *
-	 * @return void
-	 */
-	public function run() {
+	protected function get_plugins() {
 		if ( ! function_exists( 'get_plugins' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 
 		// Get an array of all plugins.
 		$this->installed_plugins = get_plugins();
+	}
+
+	/**
+	 * Loop installed plugins and process dependencies.
+	 *
+	 * @return void
+	 */
+	public function loop_installed_plugins() {
 		// Loop installed plugins.
 		foreach ( $this->installed_plugins as $file => $plugin ) {
 			$this->maybe_process_plugin_dependencies( $file );
 		}
-	}
-
-	/**
-	 * Get an array of plugins that should be activated but are not,
-	 * due to missing/unmet dependencies.
-	 *
-	 * @return array
-	 */
-	public function get_plugins_to_activate() {
-		return get_option( $this->plugins_to_activate_option_name, array() );
-	}
-
-	/**
-	 * Set plugin to the to-be-activated queue.
-	 *
-	 * @access protected
-	 *
-	 * @param string $plugin The plugin file.
-	 *
-	 * @return bool
-	 */
-	protected function add_plugin_to_queue( $plugin ) {
-		$queue = $this->get_plugins_to_activate();
-		if ( in_array( $plugin, $queue ) ) {
-			return true;
-		}
-		$queue[] = $plugin;
-		return update_option( $this->plugins_to_activate_option_name, $queue );
-	}
-
-	/**
-	 * Remove plugin from the to-be-activated queue.
-	 *
-	 * @access protected
-	 *
-	 * @param string $plugin The plugin file.
-	 *
-	 * @return bool
-	 */
-	protected function remove_plugin_from_queue( $plugin ) {
-		$queue = $this->get_plugins_to_activate();
-		if ( ! in_array( $plugin, $queue ) ) {
-			return true;
-		}
-		return update_option( $this->plugins_to_activate_option_name, array_diff( $queue, array( $plugin ) ) );
 	}
 
 	/**
@@ -169,45 +124,12 @@ class WP_Plugins_Dependencies {
 			// Add plugin to queue of plugins to be activated.
 			$this->add_plugin_to_queue( $file );
 
-			// Remove the "Activate" link from plugin,
-			// and add a "Cancel activation request" link in its place.
-			add_filter(
-				"plugin_action_links_{$file}",
-				function( $actions ) use ( $file ) {
-					if ( ! empty( $actions['activate'] ) ) {
-						unset( $actions['activate'] );
-					}
-					if ( current_user_can( 'activate_plugin', $file ) ) {
-						$cancel_activation = sprintf(
-							'<a href="%s" class="cancel-activate unmet-dependencies" aria-label="%s">%s</a>',
-							wp_nonce_url( 'plugins.php?action=cancel-activate&amp;plugin=' . urlencode( $file ), 'cancel-activate-plugin_' . $file ),
-							/* translators: %s: Plugin name. */
-							esc_attr( sprintf( _x( 'Cancel activation of %s', 'plugin' ), get_plugin_data(  WP_PLUGIN_DIR . '/' . $file  )['Name'] ) ),
-							__( 'Cancel activation request' )
-						);
+			// Replace the plugin's "Activate" action.
+			$this->replace_activation_action_link( $file );
 
-						$actions = array_merge( array( 'cancel-activation' => $cancel_activation ), $actions );
-					}
-					return $actions;
-				}
-			);
 
 		} elseif ( $plugin_awaiting_activation ) {
 			activate_plugin( $file );
-			$this->remove_plugin_from_queue( $file );
-		}
-	}
-
-	/**
-	 * Cancel plugin's activation request.
-	 *
-	 * @return void
-	 */
-	public function cancel_activation_request() {
-		if ( ! empty( $_GET['action'] ) && 'cancel-activate' === $_GET['action'] ) {
-			$file = $_GET['plugin'];
-			check_admin_referer( 'cancel-activate-plugin_' . $file );
-
 			$this->remove_plugin_from_queue( $file );
 		}
 	}
@@ -256,20 +178,84 @@ class WP_Plugins_Dependencies {
 			}
 		}
 
-		// If the plugin is already activated, disable its deactivation
-		// and return true.
-		if ( $dependency_is_active ) {
-			$this->disallow_disabling_dependency( $plugin, $dependency );
-			return true;
-		}
-
 		// If the dependency is not installed, install it, otherwise activate it.
 		if ( ! $dependency_is_installed ) {
 			$this->maybe_install_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
-		} else {
-			$this->maybe_activate_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
+			return false;
 		}
-		return false;
+
+		if ( ! $dependency_is_active ) {
+			$this->maybe_activate_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
+			return false;
+		}
+
+		// If the plugin is already activated, disable its deactivation
+		// and return true.
+		$this->disallow_disabling_dependency( $plugin, $dependency );
+		return true;
+	}
+
+	/**
+	 * Add notices.
+	 *
+	 * @return void
+	 */
+	public function admin_notices() {
+		// Early return if there are no notices to display.
+		if ( empty( $this->notices ) ) {
+			return;
+		}
+
+		foreach ( $this->notices as $notice ) {
+			echo '<div class="notice notice-warning plugin-dependencies"><p>' . $notice['content'] . '</p></div>';
+		}
+
+		add_action( 'admin_footer', array( $this, 'the_script' ) );
+	}
+
+	/**
+	 * Removes the activation link from a plugin's actions,
+	 * and adds a "Cancel pending activation" link in its place.
+	 *
+	 * @param string $file The plugin file.
+	 *
+	 * @return void
+	 */
+	protected function replace_activation_action_link( $file ) {
+		add_filter(
+			"plugin_action_links_{$file}",
+			function( $actions ) use ( $file ) {
+				if ( ! empty( $actions['activate'] ) ) {
+					unset( $actions['activate'] );
+				}
+				if ( current_user_can( 'activate_plugin', $file ) ) {
+					$cancel_activation = sprintf(
+						'<a href="%s" class="cancel-activate unmet-dependencies" aria-label="%s">%s</a>',
+						wp_nonce_url( 'plugins.php?action=cancel-activate&amp;plugin=' . urlencode( $file ), 'cancel-activate-plugin_' . $file ),
+						/* translators: %s: Plugin name. */
+						esc_attr( sprintf( _x( 'Cancel activation of %s', 'plugin' ), get_plugin_data(  WP_PLUGIN_DIR . '/' . $file  )['Name'] ) ),
+						__( 'Cancel activation request' )
+					);
+
+					$actions = array_merge( array( 'cancel-activation' => $cancel_activation ), $actions );
+				}
+				return $actions;
+			}
+		);
+	}
+
+	/**
+	 * Cancel plugin's activation request.
+	 *
+	 * @return void
+	 */
+	public function cancel_activation_request() {
+		if ( ! empty( $_GET['action'] ) && 'cancel-activate' === $_GET['action'] ) {
+			$file = $_GET['plugin'];
+			check_admin_referer( 'cancel-activate-plugin_' . $file );
+
+			$this->remove_plugin_from_queue( $file );
+		}
 	}
 
 	/**
@@ -377,6 +363,52 @@ class WP_Plugins_Dependencies {
 		// Something went wrong, exit with error message.
 		wp_die( 'error' );
 	}
+
+	/**
+	 * Get an array of plugins that should be activated but are not,
+	 * due to missing/unmet dependencies.
+	 *
+	 * @return array
+	 */
+	public function get_plugins_to_activate() {
+		return get_option( $this->plugins_to_activate_option_name, array() );
+	}
+
+	/**
+	 * Set plugin to the to-be-activated queue.
+	 *
+	 * @access protected
+	 *
+	 * @param string $plugin The plugin file.
+	 *
+	 * @return bool
+	 */
+	protected function add_plugin_to_queue( $plugin ) {
+		$queue = $this->get_plugins_to_activate();
+		if ( in_array( $plugin, $queue ) ) {
+			return true;
+		}
+		$queue[] = $plugin;
+		return update_option( $this->plugins_to_activate_option_name, $queue );
+	}
+
+	/**
+	 * Remove plugin from the to-be-activated queue.
+	 *
+	 * @access protected
+	 *
+	 * @param string $plugin The plugin file.
+	 *
+	 * @return bool
+	 */
+	protected function remove_plugin_from_queue( $plugin ) {
+		$queue = $this->get_plugins_to_activate();
+		if ( ! in_array( $plugin, $queue ) ) {
+			return true;
+		}
+		return update_option( $this->plugins_to_activate_option_name, array_diff( $queue, array( $plugin ) ) );
+	}
+
 
 	/**
 	 * Print script for our notice.
