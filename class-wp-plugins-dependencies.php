@@ -52,9 +52,6 @@ class WP_Plugins_Dependencies {
 
 		// Add the admin notices.
 		add_action( 'admin_notices', [ $this, 'admin_notices' ] );
-
-		// Activate a plugin via AJAX.
-		add_action( 'wp_ajax_plugin_dependencies_activate_plugin', [ $this, 'ajax_activate_dependency' ] );
 	}
 
 	/**
@@ -209,8 +206,6 @@ class WP_Plugins_Dependencies {
 		foreach ( $this->notices as $notice ) {
 			echo '<div class="notice notice-warning plugin-dependencies"><p>' . $notice['content'] . '</p></div>';
 		}
-
-		add_action( 'admin_footer', array( $this, 'the_script' ) );
 	}
 
 	/**
@@ -315,51 +310,17 @@ class WP_Plugins_Dependencies {
 	 * @return void
 	 */
 	protected function maybe_activate_dependency( $plugin, $dependency ) {
+		$activate_url = wp_nonce_url( 'plugins.php?action=activate&amp;plugin=' . urlencode( $dependency->file ) . '&amp;plugin_status=all', 'activate-plugin_' . $dependency->file );
+
 		$this->notices[] = array(
 			'content' => sprintf(
 				/* translators: %1$s: The plugin we want to activate. %2$s: The name of the plugin to install. %3$s: "Activate" button. */
 				__( 'Plugin "%1$s" depends on plugin "%2$s" to be activated. %3$s' ),
 				$plugin['Name'],
 				$dependency->name,
-				sprintf(
-					'<button class="%s" onclick="%s">%s</button>',
-					"button activate-dependency-{$dependency->slug}",
-					"window.activatePlugin('{$dependency->file}');",
-					__( 'Activate dependency' )
-				)
+				'<a href="' . $activate_url . '">' . __( 'Activate plugin' ) . '</a>'
 			),
 		);
-	}
-
-	/**
-	 * Activates the Gutenberg plugin.
-	 *
-	 * @access public
-	 *
-	 * @return void
-	 */
-	public function ajax_activate_dependency() {
-
-		// Early exit if the user doesn't have the capability to activate plugins.
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			wp_die();
-		}
-
-		// Security check.
-		check_ajax_referer( 'plugin_dependencies', 'nonce' );
-
-		$plugin_file = $_GET['dependencyFile'];
-
-		// Activate plugin.
-		$result = activate_plugin( $plugin_file );
-
-		// Plugin was successfully activated. Exit with success message.
-		if ( ! is_wp_error( $result ) ) {
-			wp_die( 'success' );
-		}
-
-		// Something went wrong, exit with error message.
-		wp_die( 'error' );
 	}
 
 	/**
@@ -405,38 +366,5 @@ class WP_Plugins_Dependencies {
 			return true;
 		}
 		return update_option( $this->plugins_to_activate_option_name, array_diff( $queue, array( $plugin ) ) );
-	}
-
-
-	/**
-	 * Print script for our notice.
-	 *
-	 * @access public
-	 *
-	 * @return void
-	 */
-	public function the_script() {
-		?>
-		<script>
-		window.activatePlugin = ( file ) => {
-			jQuery( 'button.activate-dependency-' + file.split( '/' )[0] )
-				.html( '<?php esc_html_e( 'Activating plugin, please wait. The page will refresh automatically when done' ); ?>' )
-				.attr( 'disabled', true );
-
-			// AJAX request to activate the plugin.
-			jQuery.get( ajaxurl, {
-				action: 'plugin_dependencies_activate_plugin',
-				nonce: '<?php echo esc_html( wp_create_nonce( 'plugin_dependencies' ) ); ?>',
-				dependencyFile: file,
-			}, function( response ) {
-				if ( 'success' === response ) {
-					window.location.reload();
-				} else {
-					// TODO.
-				}
-			} );
-		};
-		</script>
-		<?php
 	}
 }
