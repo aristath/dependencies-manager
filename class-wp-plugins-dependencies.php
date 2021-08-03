@@ -43,6 +43,13 @@ class WP_Plugins_Dependencies {
 	protected $dependencies_parents = array();
 
 	/**
+	 * An array of plugin dependencies.
+	 *
+	 * @var array
+	 */
+	protected $plugin_dependencies = array();
+
+	/**
 	 * Constructor.
 	 *
 	 * Add hooks.
@@ -62,6 +69,9 @@ class WP_Plugins_Dependencies {
 
 		// Add extra info below plugins that are dependencies.
 		add_action( 'after_plugin_row', array( $this, 'after_plugin_row' ), 10, 2 );
+
+		// Filter available plugin actions.
+		add_filter( 'plugin_action_links', array( $this, 'plugin_action_links' ), 10, 4 );
 	}
 
 	/**
@@ -135,9 +145,6 @@ class WP_Plugins_Dependencies {
 			// Add plugin to queue of plugins to be activated.
 			$this->add_plugin_to_queue( $file );
 
-			// Replace the plugin's "Activate" action.
-			$this->replace_activation_action_link( $file );
-
 		} elseif ( $plugin_awaiting_activation ) {
 			activate_plugin( $file );
 			$this->remove_plugin_from_queue( $file );
@@ -152,17 +159,18 @@ class WP_Plugins_Dependencies {
 	 * @return array
 	 */
 	public function get_plugin_dependencies( $file ) {
-		// Get the plugin directory.
-		$plugin_dir = dirname( WP_PLUGIN_DIR . '/' . $file );
 
-		$dependencies = array();
+		if ( ! isset( $this->plugin_dependencies[ $file ] ) ) {
+			// Get the plugin directory.
+			$plugin_dir = dirname( WP_PLUGIN_DIR . '/' . $file );
 
-		// Early exit if a dependencies.json file does not exist in this plugin.
-		if ( file_exists( "$plugin_dir/dependencies.json" ) ) {
-			$dependencies = json_decode( file_get_contents( "$plugin_dir/dependencies.json" ) );
+			$this->plugin_dependencies[ $file ] = array();
+			if ( file_exists( "$plugin_dir/dependencies.json" ) ) {
+				$this->plugin_dependencies[ $file ] = json_decode( file_get_contents( "$plugin_dir/dependencies.json" ) );
+			}
 		}
 
-		return $dependencies;
+		return $this->plugin_dependencies[ $file ];
 	}
 
 	/**
@@ -199,10 +207,6 @@ class WP_Plugins_Dependencies {
 			return false;
 		}
 
-		// If the plugin is already activated, disable its deactivation
-		// and return true.
-		$this->disallow_disabling_dependency( $plugin, $dependency );
-
 		// Add item to the $dependencies_parents array.
 		if ( empty( $this->dependencies_parents[ $dependency->file ] ) ) {
 			$this->dependencies_parents[ $dependency->file ] = array();
@@ -229,37 +233,6 @@ class WP_Plugins_Dependencies {
 	}
 
 	/**
-	 * Removes the activation link from a plugin's actions,
-	 * and adds a "Cancel pending activation" link in its place.
-	 *
-	 * @param string $file The plugin file.
-	 *
-	 * @return void
-	 */
-	protected function replace_activation_action_link( $file ) {
-		add_filter(
-			"plugin_action_links_{$file}",
-			function( $actions ) use ( $file ) {
-				if ( ! empty( $actions['activate'] ) ) {
-					unset( $actions['activate'] );
-				}
-				if ( current_user_can( 'activate_plugin', $file ) ) {
-					$cancel_activation = sprintf(
-						'<a href="%s" class="cancel-activate unmet-dependencies" aria-label="%s">%s</a>',
-						wp_nonce_url( 'plugins.php?action=cancel-activate&amp;plugin=' . urlencode( $file ), 'cancel-activate-plugin_' . $file ),
-						/* translators: %s: Plugin name. */
-						esc_attr( sprintf( _x( 'Cancel activation of %s', 'plugin' ), get_plugin_data(  WP_PLUGIN_DIR . '/' . $file  )['Name'] ) ),
-						__( 'Cancel activation request' )
-					);
-
-					$actions = array_merge( array( 'cancel-activation' => $cancel_activation ), $actions );
-				}
-				return $actions;
-			}
-		);
-	}
-
-	/**
 	 * Cancel plugin's activation request.
 	 *
 	 * @return void
@@ -274,21 +247,38 @@ class WP_Plugins_Dependencies {
 	}
 
 	/**
-	 * Disallow deactivating a plugin which is a dependency.
+	 * Filters the action links displayed for each plugin in the Plugins list table.
 	 *
-	 * @param string   $plugin     The plugin defining the dependency.json
-	 * @param stdClass $dependency A dependency
+	 * @param string[] $actions     An array of plugin action links.
+	 * @param string   $plugin_file Path to the plugin file relative to the plugins directory.
+	 * @param array    $plugin_data An array of plugin data. See `get_plugin_data()`.
 	 *
-	 * @return void
+	 * @return string[]
 	 */
-	protected function disallow_disabling_dependency( $plugin, $dependency ) {
-		add_filter(
-			"plugin_action_links_{$dependency->file}",
-			function( $actions ) use ( $plugin ) {
-				unset( $actions['deactivate'] );
-				return $actions;
+	public function plugin_action_links( $actions, $plugin_file, $plugin_data ) {
+
+		// Remove deactivation link from dependencies.
+		if ( ! empty( $this->dependencies_parents[ $plugin_file ] ) ) {
+			unset( $actions['deactivate'] );
+		}
+
+		// On plugins with unmet dependencies that the user has already requested for the plugin's activation,
+		// removes the activation link from its actions and add a "Cancel pending activation" link in its place.
+		if ( in_array( $plugin_file, $this->get_plugins_to_activate() ) && ! empty( $this->get_plugin_dependencies( $plugin_file ) ) ) {
+			unset( $actions['activate'] );
+			if ( current_user_can( 'activate_plugin', $plugin_file ) ) {
+				$cancel_activation = sprintf(
+					'<a href="%s" class="cancel-activate unmet-dependencies" aria-label="%s">%s</a>',
+					wp_nonce_url( 'plugins.php?action=cancel-activate&amp;plugin=' . urlencode( $plugin_file ), 'cancel-activate-plugin_' . $plugin_file ),
+					/* translators: %s: Plugin name. */
+					esc_attr( sprintf( _x( 'Cancel activation of %s', 'plugin' ), get_plugin_data(  WP_PLUGIN_DIR . '/' . $plugin_file  )['Name'] ) ),
+					__( 'Cancel activation request' )
+				);
+
+				$actions = array_merge( array( 'cancel-activation' => $cancel_activation ), $actions );
 			}
-		);
+		}
+		return $actions;
 	}
 
 	/**
@@ -301,34 +291,44 @@ class WP_Plugins_Dependencies {
 	 */
 	public function after_plugin_row( $plugin_file, $plugin_data ) {
 
-		if ( empty( $this->dependencies_parents[ $plugin_file ] ) ) {
-			return;
+		// Add extra info to dependencies.
+		if ( ! empty( $this->dependencies_parents[ $plugin_file ] ) ) {
+			$parents_names = array();
+			foreach ( $this->dependencies_parents[ $plugin_file ] as $parent ) {
+				$parents_names[] = get_plugin_data(  WP_PLUGIN_DIR . '/' . $parent  )['Name'];
+			}
+
+			$style = is_rtl() ? 'border-top:none;border-left:none' : 'border-top:none;border-right:none';
+			echo '<tr><td colspan="5" class="notice notice-info notice-alt" style="' . $style . '">';
+			if ( 1 < count( $parents_names ) ) {
+				printf(
+					/* translators: %1$s: plugin name. %2$s: Parent plugin names, comma-separated. */
+					__( 'Plugin %1$s is a dependency for the following plugins: %2$s.' ),
+					$plugin_data['Name'],
+					implode( ', ', $parents_names )
+				);
+			} else {
+				printf(
+					/* translators: %1$s: plugin name. %2$s: Parent plugin name. */
+					__( 'Plugin %1$s is a dependency for the "%2$s" plugin.' ),
+					$plugin_data['Name'],
+					$parents_names[0]
+				);
+			}
+			echo '</td></tr>';
 		}
 
-		$style = is_rtl() ? 'border-top:none;border-left:none' : 'border-top:none;border-right:none';
-
-		$parents_names = array();
-		foreach ( $this->dependencies_parents[ $plugin_file ] as $parent ) {
-			$parents_names[] = get_plugin_data(  WP_PLUGIN_DIR . '/' . $parent  )['Name'];
-		}
-
-		echo '<td colspan="5" class="notice notice-warning notice-alt" style="' . $style . '">';
-		if ( 1 < count( $parents_names ) ) {
+		// Add extra info to parents with unmet dependencies.
+		if ( in_array( $plugin_file, $this->get_plugins_to_activate() ) && ! empty( $this->get_plugin_dependencies( $plugin_file ) ) ) {
+			$style = is_rtl() ? 'border-top:none;border-left:none' : 'border-top:none;border-right:none';
+			echo '<tr><td colspan="5" class="notice notice-warning notice-alt" style="' . $style . '">';
 			printf(
-				/* translators: %1$s: plugin name. %2$s: Parent plugin names, comma-separated. */
-				__( 'Plugin %1$s is a dependency for the following plugins: %2$s.' ),
+				/* translators: %s: plugin name. */
+				__( 'Plugin "%s" has unmet dependencies. Once all required plugins are installed the plugin will be automatically activated. Alternatively you can cancel the activation of this plugin by clicking on the "cancel activation request" link above.' ),
 				$plugin_data['Name'],
-				implode( ', ', $parents_names )
 			);
-		} else {
-			printf(
-				/* translators: %1$s: plugin name. %2$s: Parent plugin name. */
-				__( 'Plugin %1$s is a dependency for the "%2$s" plugin.' ),
-				$plugin_data['Name'],
-				$parents_names[0]
-			);
+			echo '</td></tr>';
 		}
-		echo '</td>';
 	}
 
 	/**
