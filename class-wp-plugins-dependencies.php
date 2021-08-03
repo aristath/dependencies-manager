@@ -92,6 +92,7 @@ class WP_Plugins_Dependencies {
 		$plugin_is_active           = is_plugin_active( $file );
 		$plugin_awaiting_activation = in_array( $file, $this->get_plugins_to_activate() );
 
+		// Early return if the plugin is not active or we don't want to activate it.
 		if ( ! $plugin_is_active && ! $plugin_awaiting_activation ) {
 			return;
 		}
@@ -107,13 +108,16 @@ class WP_Plugins_Dependencies {
 		// Loop dependencies.
 		$dependencies_met = true;
 		foreach ( $dependencies as $dependency ) {
+
+			// Set $dependencies_met to false if one of the dependencies is not met.
 			if ( ! $this->process_plugin_dependency( $file, $dependency ) ) {
 				$dependencies_met = false;
 			}
 		}
 
-		// Make sure plugin is deactivated when its dependencies are not met.
 		if ( ! $dependencies_met ) {
+
+			// Make sure plugin is deactivated when its dependencies are not met.
 			if ( $plugin_is_active ) {
 				deactivate_plugins( $file );
 			}
@@ -123,7 +127,6 @@ class WP_Plugins_Dependencies {
 
 			// Replace the plugin's "Activate" action.
 			$this->replace_activation_action_link( $file );
-
 
 		} elseif ( $plugin_awaiting_activation ) {
 			activate_plugin( $file );
@@ -265,15 +268,30 @@ class WP_Plugins_Dependencies {
 		add_filter(
 			"plugin_action_links_{$dependency->file}",
 			function( $actions ) use ( $plugin ) {
-				if ( ! empty( $actions['deactivate'] ) ) {
-					$actions['deactivate'] = sprintf(
-						/* translators: %s: plugin name. */
-						'<span style="color:#888;">' . __( 'Plugin can not be deactivated because it is a dependency for the "%s" plugin' ) . '</span>',
-						get_plugin_data(  WP_PLUGIN_DIR . '/' . $plugin  )['Name']
-					);
-				}
+				unset( $actions['deactivate'] );
 				return $actions;
 			}
+		);
+
+		add_action(
+			"after_plugin_row",
+			function( $plugin_file, $plugin_data, $status ) use ( $plugin, $dependency ) {
+				if ( $dependency->file !== $plugin_file ) {
+					return;
+				}
+
+				$style = is_rtl() ? 'border-top:none;border-left:none' : 'border-top:none;border-right:none';
+				echo '<td colspan="5" class="notice notice-info notice-alt" style="' . $style . '">';
+				printf(
+					/* translators: %s: plugin name. */
+					__( 'The %1$s Plugin is a dependency for the "%2$s" plugin' ),
+					$dependency->name,
+					get_plugin_data(  WP_PLUGIN_DIR . '/' . $plugin  )['Name']
+				);
+				echo '</td>';
+			},
+			10,
+			3
 		);
 	}
 
