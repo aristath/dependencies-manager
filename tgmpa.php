@@ -109,24 +109,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 		protected $sort_order = array();
 
 		/**
-		 * Whether any plugins have the 'force_activation' setting set to true.
-		 *
-		 * @since 2.5.0
-		 *
-		 * @var bool
-		 */
-		protected $has_forced_activation = false;
-
-		/**
-		 * Whether any plugins have the 'force_deactivation' setting set to true.
-		 *
-		 * @since 2.5.0
-		 *
-		 * @var bool
-		 */
-		protected $has_forced_deactivation = false;
-
-		/**
 		 * Name of the unique ID to hash notices.
 		 *
 		 * @since 2.4.0
@@ -427,16 +409,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 				add_action( 'switch_theme', array( $this, 'update_dismiss' ) );
 			}
 
-			// Setup the force activation hook.
-			if ( true === $this->has_forced_activation ) {
-				add_action( 'admin_init', array( $this, 'force_activation' ) );
-			}
-
-			// Setup the force deactivation hook.
-			if ( true === $this->has_forced_deactivation ) {
-				add_action( 'switch_theme', array( $this, 'force_deactivation' ) );
-			}
-
 			// Add CSS for the TGMPA admin page.
 			add_action( 'admin_head', array( $this, 'admin_css' ) );
 		}
@@ -454,10 +426,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 			foreach ( $this->plugins as $slug => $plugin ) {
 				if ( false === $this->can_plugin_activate( $slug ) ) {
 					add_filter( 'plugin_action_links_' . $plugin['file_path'], array( $this, 'filter_plugin_action_links_activate' ), 20 );
-				}
-
-				if ( true === $plugin['force_activation'] ) {
-					add_filter( 'plugin_action_links_' . $plugin['file_path'], array( $this, 'filter_plugin_action_links_deactivate' ), 20 );
 				}
 
 				if ( false !== $this->does_plugin_require_update( $slug ) ) {
@@ -1288,8 +1256,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 				'slug'               => '',      // String.
 				'source'             => 'repo',  // String.
 				'version'            => '',      // String.
-				'force_activation'   => false,   // Boolean.
-				'force_deactivation' => false,   // Boolean.
 				'external_url'       => '',      // String.
 				'is_callable'        => '',      // String or array.
 			);
@@ -1303,8 +1269,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 			// Forgive users for using string versions of booleans or floats for version number.
 			$plugin['version']            = (string) $plugin['version'];
 			$plugin['source']             = empty( $plugin['source'] ) ? 'repo' : $plugin['source'];
-			$plugin['force_activation']   = TGMPA_Utils::validate_bool( $plugin['force_activation'] );
-			$plugin['force_deactivation'] = TGMPA_Utils::validate_bool( $plugin['force_deactivation'] );
 
 			// Enrich the received data.
 			$plugin['file_path']   = $this->_get_plugin_basename_from_slug( $plugin['slug'] );
@@ -1313,16 +1277,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 			// Set the class properties.
 			$this->plugins[ $plugin['slug'] ]    = $plugin;
 			$this->sort_order[ $plugin['slug'] ] = $plugin['name'];
-
-			// Should we add the force activation hook ?
-			if ( true === $plugin['force_activation'] ) {
-				$this->has_forced_activation = true;
-			}
-
-			// Should we add the force deactivation hook ?
-			if ( true === $plugin['force_deactivation'] ) {
-				$this->has_forced_deactivation = true;
-			}
 		}
 
 		/**
@@ -1917,65 +1871,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 		 */
 		public function update_dismiss() {
 			delete_metadata( 'user', null, 'tgmpa_dismissed_notice_' . $this->id, null, true );
-		}
-
-		/**
-		 * Forces plugin activation if the parameter 'force_activation' is
-		 * set to true.
-		 *
-		 * This allows theme authors to specify certain plugins that must be
-		 * active at all times while using the current theme.
-		 *
-		 * Please take special care when using this parameter as it has the
-		 * potential to be harmful if not used correctly. Setting this parameter
-		 * to true will not allow the specified plugin to be deactivated unless
-		 * the user switches themes.
-		 *
-		 * @since 2.2.0
-		 */
-		public function force_activation() {
-			foreach ( $this->plugins as $slug => $plugin ) {
-				if ( true === $plugin['force_activation'] ) {
-					if ( ! $this->is_plugin_installed( $slug ) ) {
-						// Oops, plugin isn't there so iterate to next condition.
-						continue;
-					} elseif ( $this->can_plugin_activate( $slug ) ) {
-						// There we go, activate the plugin.
-						activate_plugin( $plugin['file_path'] );
-					}
-				}
-			}
-		}
-
-		/**
-		 * Forces plugin deactivation if the parameter 'force_deactivation'
-		 * is set to true and adds the plugin to the 'recently active' plugins list.
-		 *
-		 * This allows theme authors to specify certain plugins that must be
-		 * deactivated upon switching from the current theme to another.
-		 *
-		 * Please take special care when using this parameter as it has the
-		 * potential to be harmful if not used correctly.
-		 *
-		 * @since 2.2.0
-		 */
-		public function force_deactivation() {
-			$deactivated = array();
-
-			foreach ( $this->plugins as $slug => $plugin ) {
-				/*
-				 * Only proceed forward if the parameter is set to true and plugin is active
-				 * as a 'normal' (not must-use) plugin.
-				 */
-				if ( true === $plugin['force_deactivation'] && is_plugin_active( $plugin['file_path'] ) ) {
-					deactivate_plugins( $plugin['file_path'] );
-					$deactivated[ $plugin['file_path'] ] = time();
-				}
-			}
-
-			if ( ! empty( $deactivated ) ) {
-				update_option( 'recently_activated', $deactivated + (array) get_option( 'recently_activated' ) );
-			}
 		}
 
 		/**
@@ -3686,76 +3581,6 @@ if ( ! class_exists( 'TGMPA_Utils' ) ) {
 		 */
 		public static function wrap_in_strong( $string ) {
 			return '<strong>' . wp_kses_post( $string ) . '</strong>';
-		}
-
-		/**
-		 * Helper function: Validate a value as boolean
-		 *
-		 * @since 2.5.0
-		 *
-		 * @static
-		 *
-		 * @param mixed $value Arbitrary value.
-		 * @return bool
-		 */
-		public static function validate_bool( $value ) {
-			if ( ! isset( self::$has_filters ) ) {
-				self::$has_filters = extension_loaded( 'filter' );
-			}
-
-			if ( self::$has_filters ) {
-				return filter_var( $value, FILTER_VALIDATE_BOOLEAN );
-			} else {
-				return self::emulate_filter_bool( $value );
-			}
-		}
-
-		/**
-		 * Helper function: Cast a value to bool
-		 *
-		 * @since 2.5.0
-		 *
-		 * @static
-		 *
-		 * @param mixed $value Value to cast.
-		 * @return bool
-		 */
-		protected static function emulate_filter_bool( $value ) {
-			// phpcs:disable WordPress.Arrays.ArrayDeclarationSpacing.ArrayItemNoNewLine
-			static $true  = array(
-				'1',
-				'true', 'True', 'TRUE',
-				'y', 'Y',
-				'yes', 'Yes', 'YES',
-				'on', 'On', 'ON',
-			);
-			static $false = array(
-				'0',
-				'false', 'False', 'FALSE',
-				'n', 'N',
-				'no', 'No', 'NO',
-				'off', 'Off', 'OFF',
-			);
-			// phpcs:enable
-
-			if ( is_bool( $value ) ) {
-				return $value;
-			} elseif ( is_int( $value ) && ( 0 === $value || 1 === $value ) ) {
-				return (bool) $value;
-			} elseif ( ( is_float( $value ) && ! is_nan( $value ) ) && ( (float) 0 === $value || (float) 1 === $value ) ) {
-				return (bool) $value;
-			} elseif ( is_string( $value ) ) {
-				$value = trim( $value );
-				if ( in_array( $value, $true, true ) ) {
-					return true;
-				} elseif ( in_array( $value, $false, true ) ) {
-					return false;
-				} else {
-					return false;
-				}
-			}
-
-			return false;
 		}
 	} // End of class TGMPA_Utils
 }
