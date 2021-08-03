@@ -351,12 +351,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 					'tgmpa'
 				),
 				/* translators: 1: plugin name(s). */
-				'notice_can_install_recommended'  => _n_noop(
-					'This theme recommends the following plugin: %1$s.',
-					'This theme recommends the following plugins: %1$s.',
-					'tgmpa'
-				),
-				/* translators: 1: plugin name(s). */
 				'notice_ask_to_update'            => _n_noop(
 					'The following plugin needs to be updated to its latest version to ensure maximum compatibility with this theme: %1$s.',
 					'The following plugins need to be updated to their latest version to ensure maximum compatibility with this theme: %1$s.',
@@ -372,12 +366,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 				'notice_can_activate_required'    => _n_noop(
 					'The following required plugin is currently inactive: %1$s.',
 					'The following required plugins are currently inactive: %1$s.',
-					'tgmpa'
-				),
-				/* translators: 1: plugin name(s). */
-				'notice_can_activate_recommended' => _n_noop(
-					'The following recommended plugin is currently inactive: %1$s.',
-					'The following recommended plugins are currently inactive: %1$s.',
 					'tgmpa'
 				),
 				'install_link'                    => _n_noop(
@@ -406,7 +394,7 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 				/* translators: 1: dashboard link. */
 				'complete'                        => __( 'All plugins installed and activated successfully. %1$s', 'tgmpa' ),
 				'dismiss'                         => __( 'Dismiss this notice', 'tgmpa' ),
-				'notice_cannot_install_activate'  => __( 'There are one or more required or recommended plugins to install, update or activate.', 'tgmpa' ),
+				'notice_cannot_install_activate'  => __( 'There are one or more required plugins to install, update or activate.', 'tgmpa' ),
 				'contact_admin'                   => __( 'Please contact the administrator of this site for help.', 'tgmpa' ),
 			);
 
@@ -1164,29 +1152,17 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 					if ( current_user_can( 'install_plugins' ) ) {
 						$install_link_count++;
 
-						if ( true === $plugin['required'] ) {
-							$message['notice_can_install_required'][] = $slug;
-						} else {
-							$message['notice_can_install_recommended'][] = $slug;
-						}
+						$message['notice_can_install_required'][] = $slug;
 					}
-					if ( true === $plugin['required'] ) {
-						$total_required_action_count++;
-					}
+					$total_required_action_count++;
 				} else {
 					if ( ! $this->is_plugin_active( $slug ) && $this->can_plugin_activate( $slug ) ) {
 						if ( current_user_can( 'activate_plugins' ) ) {
 							$activate_link_count++;
 
-							if ( true === $plugin['required'] ) {
-								$message['notice_can_activate_required'][] = $slug;
-							} else {
-								$message['notice_can_activate_recommended'][] = $slug;
-							}
+							$message['notice_can_activate_required'][] = $slug;
 						}
-						if ( true === $plugin['required'] ) {
-							$total_required_action_count++;
-						}
+						$total_required_action_count++;
 					}
 
 					if ( $this->does_plugin_require_update( $slug ) || false !== $this->does_plugin_have_update( $slug ) ) {
@@ -1200,9 +1176,7 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 								$message['notice_ask_to_update_maybe'][] = $slug;
 							}
 						}
-						if ( true === $plugin['required'] ) {
-							$total_required_action_count++;
-						}
+						$total_required_action_count++;
 					}
 				}
 			}
@@ -1406,7 +1380,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 				'name'               => '',      // String.
 				'slug'               => '',      // String.
 				'source'             => 'repo',  // String.
-				'required'           => false,   // Boolean.
 				'version'            => '',      // String.
 				'force_activation'   => false,   // Boolean.
 				'force_deactivation' => false,   // Boolean.
@@ -1423,7 +1396,6 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 			// Forgive users for using string versions of booleans or floats for version number.
 			$plugin['version']            = (string) $plugin['version'];
 			$plugin['source']             = empty( $plugin['source'] ) ? 'repo' : $plugin['source'];
-			$plugin['required']           = TGMPA_Utils::validate_bool( $plugin['required'] );
 			$plugin['force_activation']   = TGMPA_Utils::validate_bool( $plugin['force_activation'] );
 			$plugin['force_deactivation'] = TGMPA_Utils::validate_bool( $plugin['force_deactivation'] );
 
@@ -2032,7 +2004,7 @@ if ( ! class_exists( 'TGM_Plugin_Activation' ) ) {
 		 * Delete dismissable nag option when theme is switched.
 		 *
 		 * This ensures that the user(s) is/are again reminded via nag of required
-		 * and/or recommended plugins if they re-activate the theme.
+		 * plugins if they re-activate the theme.
 		 *
 		 * @since 2.1.1
 		 */
@@ -2222,7 +2194,7 @@ if ( ! class_exists( 'TGMPA_List_Table' ) ) {
 	 * List table class for handling plugins.
 	 *
 	 * Extends the WP_List_Table class to provide a future-compatible
-	 * way of listing out all required/recommended plugins.
+	 * way of listing out all required plugins.
 	 *
 	 * Gives users an interface similar to the Plugin Administration
 	 * area with similar (albeit stripped down) capabilities.
@@ -2287,8 +2259,6 @@ if ( ! class_exists( 'TGMPA_List_Table' ) ) {
 			if ( isset( $_REQUEST['plugin_status'] ) && in_array( $_REQUEST['plugin_status'], array( 'install', 'update', 'activate' ), true ) ) {
 				$this->view_context = sanitize_key( $_REQUEST['plugin_status'] );
 			}
-
-			add_filter( 'tgmpa_table_data_items', array( $this, 'sort_table_items' ) );
 		}
 
 		/**
@@ -2336,7 +2306,7 @@ if ( ! class_exists( 'TGMPA_List_Table' ) ) {
 				$table_data[ $i ]['slug']              = $slug;
 				$table_data[ $i ]['plugin']            = '<strong>' . $this->tgmpa->get_info_link( $slug ) . '</strong>';
 				$table_data[ $i ]['source']            = $this->get_plugin_source_type_text( $plugin['source_type'] );
-				$table_data[ $i ]['type']              = $this->get_plugin_advise_type_text( $plugin['required'] );
+				$table_data[ $i ]['type']              = __( 'Required', 'tgmpa' );
 				$table_data[ $i ]['status']            = $this->get_plugin_status_text( $slug );
 				$table_data[ $i ]['installed_version'] = $this->tgmpa->get_installed_version( $slug );
 				$table_data[ $i ]['minimum_version']   = $plugin['version'];
@@ -2409,22 +2379,6 @@ if ( ! class_exists( 'TGMPA_List_Table' ) ) {
 		}
 
 		/**
-		 * Get the plugin required/recommended text string.
-		 *
-		 * @since 2.5.0
-		 *
-		 * @param string $required Plugin required setting.
-		 * @return string
-		 */
-		protected function get_plugin_advise_type_text( $required ) {
-			if ( true === $required ) {
-				return __( 'Required', 'tgmpa' );
-			}
-
-			return __( 'Recommended', 'tgmpa' );
-		}
-
-		/**
 		 * Get the plugin source type text string.
 		 *
 		 * @since 2.5.0
@@ -2491,28 +2445,6 @@ if ( ! class_exists( 'TGMPA_List_Table' ) ) {
 				$install_status,
 				$update_status
 			);
-		}
-
-		/**
-		 * Sort plugins by Required/Recommended type and by alphabetical plugin name within each type.
-		 *
-		 * @since 2.5.0
-		 *
-		 * @param array $items Prepared table items.
-		 * @return array Sorted table items.
-		 */
-		public function sort_table_items( $items ) {
-			$type = array();
-			$name = array();
-
-			foreach ( $items as $i => $plugin ) {
-				$type[ $i ] = $plugin['type']; // Required / recommended.
-				$name[ $i ] = $plugin['sanitized_plugin'];
-			}
-
-			array_multisort( $type, SORT_DESC, $name, SORT_ASC, $items );
-
-			return $items;
 		}
 
 		/**
