@@ -36,6 +36,13 @@ class WP_Plugins_Dependencies {
 	protected $notices = array();
 
 	/**
+	 * Array of parents for dependencies.
+	 *
+	 * @var array
+	 */
+	protected $dependencies_parents = array();
+
+	/**
 	 * Constructor.
 	 *
 	 * Add hooks.
@@ -51,7 +58,10 @@ class WP_Plugins_Dependencies {
 		add_action( 'plugins_loaded', array( $this, 'loop_installed_plugins' ) );
 
 		// Add the admin notices.
-		add_action( 'admin_notices', [ $this, 'admin_notices' ] );
+		add_action( 'admin_notices', array( $this, 'admin_notices' ) );
+
+		// Add extra info below plugins that are dependencies.
+		add_action( 'after_plugin_row', array( $this, 'after_plugin_row' ), 10, 2 );
 	}
 
 	/**
@@ -192,6 +202,13 @@ class WP_Plugins_Dependencies {
 		// If the plugin is already activated, disable its deactivation
 		// and return true.
 		$this->disallow_disabling_dependency( $plugin, $dependency );
+
+		// Add item to the $dependencies_parents array.
+		if ( empty( $this->dependencies_parents[ $dependency->file ] ) ) {
+			$this->dependencies_parents[ $dependency->file ] = array();
+		}
+		$this->dependencies_parents[ $dependency->file ][] = $plugin;
+
 		return true;
 	}
 
@@ -272,27 +289,46 @@ class WP_Plugins_Dependencies {
 				return $actions;
 			}
 		);
+	}
 
-		add_action(
-			"after_plugin_row",
-			function( $plugin_file, $plugin_data, $status ) use ( $plugin, $dependency ) {
-				if ( $dependency->file !== $plugin_file ) {
-					return;
-				}
+	/**
+	 * Add dependencies info in plugins.
+	 *
+	 * @param string $plugin_file Path to the plugin file relative to the plugins directory.
+	 * @param array  $plugin_data An array of plugin data.
+	 *
+	 * @return void
+	 */
+	public function after_plugin_row( $plugin_file, $plugin_data ) {
 
-				$style = is_rtl() ? 'border-top:none;border-left:none' : 'border-top:none;border-right:none';
-				echo '<td colspan="5" class="notice notice-info notice-alt" style="' . $style . '">';
-				printf(
-					/* translators: %s: plugin name. */
-					__( 'The %1$s Plugin is a dependency for the "%2$s" plugin' ),
-					$dependency->name,
-					get_plugin_data(  WP_PLUGIN_DIR . '/' . $plugin  )['Name']
-				);
-				echo '</td>';
-			},
-			10,
-			3
-		);
+		if ( empty( $this->dependencies_parents[ $plugin_file ] ) ) {
+			return;
+		}
+
+		$style = is_rtl() ? 'border-top:none;border-left:none' : 'border-top:none;border-right:none';
+
+		$parents_names = array();
+		foreach ( $this->dependencies_parents[ $plugin_file ] as $parent ) {
+			$parents_names[] = get_plugin_data(  WP_PLUGIN_DIR . '/' . $parent  )['Name'];
+		}
+
+		echo '<td colspan="5" class="notice notice-warning notice-alt" style="' . $style . '">';
+		if ( 1 < count( $parents_names ) ) {
+			printf(
+				/* translators: %1$s: plugin name. %2$s: Parent plugin names, comma-separated. */
+				__( 'Plugin %1$s is a dependency for the following plugins: %2$s.' ),
+				$plugin_data['Name'],
+				implode( ', ', $parents_names )
+			);
+		} else {
+			printf(
+				/* translators: %1$s: plugin name. %2$s: Parent plugin name. */
+				__( 'Plugin %1$s is a dependency for the "%2$s" plugin.' ),
+				$plugin_data['Name'],
+				$parents_names[0]
+			);
+		}
+		echo '</td>';
 	}
 
 	/**
