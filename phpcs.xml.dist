@@ -12,6 +12,8 @@
 		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
 		<exclude name="WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents"/>
 		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+		<!-- This is meant to be oported to wp-core, no don't use a textdomain. -->
+		<exclude name="WordPress.WP.I18n.MissingArgDomain" />
 	</rule>
 	<rule ref="WordPress-Core"/>
 	<rule ref="WordPress-Docs"/>
