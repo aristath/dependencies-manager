@@ -1,12 +1,12 @@
 [
-    {
-        "slug": "gutenberg",
-        "name": "Gutenberg",
-        "version": "11.0"
+	{
+		"slug": "gutenberg",
+		"name": "Gutenberg",
+		"version": "11.0"
 	},
 	{
-        "slug": "woocommerce",
-        "name": "WooCommerce",
-        "version": "5.5.0"
+		"slug": "woocommerce",
+		"name": "WooCommerce",
+		"version": "5.5.2"
 	}
 ]
