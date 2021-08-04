@@ -184,6 +184,7 @@ class WP_Plugins_Dependencies {
 	protected function process_plugin_dependency( $plugin, $dependency ) {
 		$dependency_is_installed = false;
 		$dependency_is_active    = false;
+		$dependency_needs_update = false;
 
 		foreach ( $this->installed_plugins as $file => $installed_plugin ) {
 			if ( dirname( $file ) === $dependency->slug ) {
@@ -192,6 +193,11 @@ class WP_Plugins_Dependencies {
 				if ( is_plugin_active( $file ) ) {
 					$dependency_is_active = true;
 				}
+				$installed_version = get_plugin_data( WP_PLUGIN_DIR . '/' . $file )['Version'];
+				if ( ! empty( $installed_version ) && ! empty( $dependency->version ) && version_compare( $installed_version, $dependency->version, '<' ) ) {
+					$dependency_needs_update = true;
+				}
+
 				break;
 			}
 		}
@@ -202,6 +208,13 @@ class WP_Plugins_Dependencies {
 			return false;
 		}
 
+		// If the installed version is lower than the required version, update it.
+		if ( $dependency_needs_update ) {
+			$this->maybe_update_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
+			return false;
+		}
+
+		// If the plugin is not activated, activate it.
 		if ( ! $dependency_is_active ) {
 			$this->maybe_activate_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
 			return false;
@@ -352,6 +365,31 @@ class WP_Plugins_Dependencies {
 				$dependency->name,
 				/* translators: %s: Plugin name. */
 				'<a href="' . esc_url( install_plugin_install_status( array( 'slug' => $dependency->name ) )['url'] ) . '">' . sprintf( __( 'Install and activate %s' ), $dependency->name ) . '</a>'
+			),
+		);
+	}
+
+	/**
+	 * Show a notice to update a dependency.
+	 *
+	 * @param array    $plugin     The plugin calling the dependencies.
+	 * @param stdClass $dependency The plugin slug.
+	 *
+	 * @return void
+	 */
+	protected function maybe_update_dependency( $plugin, $dependency ) {
+		if ( ! current_user_can( 'update_plugins' ) ) {
+			return;
+		}
+		$this->notices[] = array(
+			'content' => sprintf(
+				/* translators: %1$s: The plugin we want to activate. %2$s: The name of the plugin to install. %3$s: Minimum required version. %4$s: Currently installed version. %5$s: Update URL. */
+				__( 'Plugin "%1$s" depends on plugin "%2$s" version %3$s or higher to be installed, and you currently have version %4$s installed. <a href="%5$s">Update %2$s</a>' ),
+				$plugin['Name'],
+				$dependency->name,
+				$dependency->version,
+				get_plugin_data( WP_PLUGIN_DIR . '/' . $dependency->file )['Version'],
+				wp_nonce_url( self_admin_url( 'update.php?action=upgrade-plugin&plugin=' . $dependency->file ), 'upgrade-plugin_' . $dependency->file )
 			),
 		);
 	}
