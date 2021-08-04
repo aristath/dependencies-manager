@@ -19,7 +19,7 @@ class WP_Plugins_Dependencies {
 	 *
 	 * @var string
 	 */
-	protected $plugins_to_activate_option_name = 'pending_plugin_activations';
+	protected $pending_plugin_activations_option = 'pending_plugin_activations';
 
 	/**
 	 * Installed plugins.
@@ -94,7 +94,6 @@ class WP_Plugins_Dependencies {
 	 * @return void
 	 */
 	public function loop_installed_plugins() {
-		// Loop installed plugins.
 		foreach ( $this->installed_plugins as $file => $plugin ) {
 			$this->maybe_process_plugin_dependencies( $file );
 		}
@@ -204,19 +203,19 @@ class WP_Plugins_Dependencies {
 
 		// If the dependency is not installed, install it, otherwise activate it.
 		if ( ! $dependency_is_installed ) {
-			$this->maybe_install_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
+			$this->add_notice_install( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
 			return false;
 		}
 
 		// If the installed version is lower than the required version, update it.
 		if ( $dependency_needs_update ) {
-			$this->maybe_update_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
+			$this->add_notice_update( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
 			return false;
 		}
 
 		// If the plugin is not activated, activate it.
 		if ( ! $dependency_is_active ) {
-			$this->maybe_activate_dependency( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
+			$this->add_notice_activate( get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin ), $dependency );
 			return false;
 		}
 
@@ -353,7 +352,7 @@ class WP_Plugins_Dependencies {
 	 *
 	 * @return void
 	 */
-	protected function maybe_install_dependency( $plugin, $dependency ) {
+	protected function add_notice_install( $plugin, $dependency ) {
 		if ( ! function_exists( 'install_plugin_install_status' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 		}
@@ -377,7 +376,7 @@ class WP_Plugins_Dependencies {
 	 *
 	 * @return void
 	 */
-	protected function maybe_update_dependency( $plugin, $dependency ) {
+	protected function add_notice_update( $plugin, $dependency ) {
 		if ( ! current_user_can( 'update_plugins' ) ) {
 			return;
 		}
@@ -402,7 +401,7 @@ class WP_Plugins_Dependencies {
 	 *
 	 * @return void
 	 */
-	protected function maybe_activate_dependency( $plugin, $dependency ) {
+	protected function add_notice_activate( $plugin, $dependency ) {
 		$activate_url = wp_nonce_url( 'plugins.php?action=activate&amp;plugin=' . rawurlencode( $dependency->file ) . '&amp;plugin_status=all', 'activate-plugin_' . $dependency->file );
 
 		$this->notices[] = array(
@@ -423,7 +422,7 @@ class WP_Plugins_Dependencies {
 	 * @return array
 	 */
 	public function get_plugins_to_activate() {
-		return get_option( $this->plugins_to_activate_option_name, array() );
+		return get_option( $this->pending_plugin_activations_option, array() );
 	}
 
 	/**
@@ -441,7 +440,7 @@ class WP_Plugins_Dependencies {
 			return true;
 		}
 		$queue[] = $plugin;
-		return update_option( $this->plugins_to_activate_option_name, $queue );
+		return update_option( $this->pending_plugin_activations_option, $queue );
 	}
 
 	/**
@@ -458,6 +457,6 @@ class WP_Plugins_Dependencies {
 		if ( ! in_array( $plugin, $queue, true ) ) {
 			return true;
 		}
-		return update_option( $this->plugins_to_activate_option_name, array_diff( $queue, array( $plugin ) ) );
+		return update_option( $this->pending_plugin_activations_option, array_diff( $queue, array( $plugin ) ) );
 	}
 }
